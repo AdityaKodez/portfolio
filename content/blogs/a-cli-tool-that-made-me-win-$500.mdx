@@ -1,0 +1,241 @@
+---
+title: A CLI tool that made me win $500 bounty
+excerpt: TypeScript CLI for Echo with WalletConnect auth and x402 payments.
+date: 2026-01-25T00:00:00.000Z
+published: true
+tags:
+  - cli
+  - typescript
+  - x402
+  - walletconnect
+  - open-source
+category: open-source
+featuredRank: 1
+author: Sachi
+---
+
+November 7th. I was scrolling through GitHub and found this bounty on the [Merit Systems](https://github.com/Merit-Systems/echo) repo.
+
+<GitHubIssue
+  number={609}
+  title="Build a CLI template similar to OpenAI Codex"
+  repo="Merit-Systems/echo"
+  state="closed"
+/>
+
+They wanted a CLI like [OpenAI's Codex](https://github.com/openai/codex) that hooks into Echo (their AI gateway). Optional support for crypto payments via x402.
+
+I'd been meaning to play with WalletConnect and x402 anyway. Scope looked reasonable. Clear requirements. Decided to try it.
+
+## What I built
+
+**echodex**. TypeScript CLI for chatting with AI models through Echo.
+
+```bash
+echodex login      # Authenticate (API key, WalletConnect, or local wallet)
+echodex            # Start a new chat session
+echodex resume     # Resume previous conversation
+echodex model      # Select AI model
+echodex history    # View conversation history
+echodex export     # Export conversations as JSON
+echodex profile    # View profile and balance
+echodex logout     # Sign out
+```
+
+What it does:
+- Three auth methods (API key, WalletConnect, local wallet)
+- Conversation history you can resume
+- Model selection (GPT-4o, GPT-5, GPT-5 Mini, GPT-5 Nano)
+- Pay-per-use with crypto wallets via x402
+- Credentials stored in OS keychain, not plaintext
+
+<Files defaultValue="src/core">
+  <Folder name="src" defaultOpen>
+    <File name="index.ts" />
+    <Folder name="auth" defaultOpen>
+      <File name="login.ts" />
+      <File name="wallet.ts" />
+      <File name="providers.ts" />
+    </Folder>
+    <Folder name="core">
+      <File name="chat.ts" />
+      <File name="history.ts" />
+    </Folder>
+    <Folder name="config">
+      <File name="store.ts" />
+    </Folder>
+    <Folder name="utils">
+      <File name="signer.ts" />
+    </Folder>
+  </Folder>
+</Files>
+
+## Authentication
+
+Wanted to support multiple auth methods without making it confusing. One `login` command, pick your method.
+
+**Echo API Key** opens the browser to `echo.merit.systems`. User creates a key there, pastes it back. I validate it actually works before storing:
+
+```typescript
+export async function loginWithEcho(): Promise<boolean> {
+  await open(ECHO_KEYS_URL)
+
+  const apiKey = await text({
+    message: 'Enter your API key:',
+    placeholder: 'echo_...',
+    validate: (value) => {
+      if (!isValid(ApiKeySchema, value)) {
+        return 'Invalid API key format (must start with echo_)'
+      }
+    }
+  })
+
+  // Verify the key actually works
+  const testClient = new EchoClient({ apiKey })
+  await testClient.users.getUserInfo()
+
+  await storage.setApiKey(apiKey)
+  await storage.setAuthMethod('echo')
+  return true
+}
+```
+
+**WalletConnect** shows a QR code in terminal. Scan with MetaMask or Rainbow or whatever:
+
+```typescript
+export async function loginWithWallet(): Promise<boolean> {
+  const provider = await initializeEthereumProvider()
+
+  return new Promise((resolve) => {
+    provider.on('display_uri', (uri: string) => {
+      QRCode.generate(uri, { small: true }, (qr: string) => {
+        console.log(qr)
+      })
+    })
+
+    provider.on('connect', async () => {
+      const walletSession: WalletConnectSession = {
+        topic: provider.session?.topic || '',
+        address: provider.accounts[0],
+        chainId: provider.chainId,
+        expiry: provider.session?.expiry
+      }
+
+      await storage.setWalletSession(walletSession)
+      await storage.setAuthMethod('wallet')
+      resolve(true)
+    })
+
+    provider.connect()
+  })
+}
+```
+
+**Local Wallet** came later from feedback. People wanted to test without connecting a real wallet. Generates a private key locally. Shows warnings about it obviously.
+
+## Credential storage
+
+Didn't want API keys sitting in some JSON config file. Used [keytar](https://github.com/nickvantournhout/keytar) to store secrets in the OS keychain (Keychain on macOS, Credential Manager on Windows, libsecret on Linux):
+
+```typescript
+export abstract class Storage {
+  async get<T>(key: string, options?: GetOptions<T>): Promise<T | undefined> {
+    const type = options?.type ?? StorageType.NORMAL
+
+    if (type === StorageType.SECURE) {
+      const value = await keytar.getPassword(this.serviceName, key)
+      return value ? JSON.parse(value) : undefined
+    } else {
+      return this.conf.get(key)
+    }
+  }
+
+  async set<T>(key: string, value: T, options?: SetOptions): Promise<void> {
+    const type = options?.type ?? StorageType.NORMAL
+
+    if (type === StorageType.SECURE) {
+      await keytar.setPassword(this.serviceName, key, JSON.stringify(value))
+    } else {
+      this.conf.set(key, value)
+    }
+  }
+}
+```
+
+Native dependency though. Need to run `pnpm approve-builds` for keytar to compile.
+
+## x402 payments
+
+When you auth with a wallet, the CLI uses x402 for pay-per-use. Each API call gets paid from your wallet directly.
+
+Signer comes from the WalletConnect session via [viem](https://viem.sh/):
+
+```typescript
+const CHAIN_MAP = {
+  1: mainnet,
+  8453: base,
+  10: optimism,
+  137: polygon,
+  42161: arbitrum
+}
+
+export async function createWalletSigner(): Promise<Signer | null> {
+  const provider = await getEthereumProvider()
+  const session = await storage.getWalletSession()
+  const chain = CHAIN_MAP[session.chainId as keyof typeof CHAIN_MAP]
+
+  const walletClient: WalletClient = createWalletClient({
+    account: session.address as `0x${string}`,
+    chain,
+    transport: custom(provider)
+  })
+
+  return walletClient as unknown as Signer
+}
+```
+
+The `ai-x402` SDK wraps Vercel AI SDK so payments happen automatically:
+
+```typescript
+async function createWalletProvider(): Promise<AIProvider> {
+  const signer = await createWalletSigner()
+
+  return createX402OpenAI({
+    walletClient: signer,
+    baseRouterUrl: APP.echoRouterUrl,
+    echoAppId: ECHO_APP_ID
+  })
+}
+```
+
+After that it's just normal Vercel AI SDK. `streamText()` works like usual.
+
+## How it went
+
+Opened the PR on November 9th. Two days after finding the issue. Had the core working: auth, chat streaming, model selection, history.
+
+<GitHubPR
+  number={675}
+  title="Echo CLI Template"
+  repo="Merit-Systems/echo"
+  state="merged"
+/>
+
+[@zdql__](https://x.com/zdql__) reviewed it. Good feedback. Added two things:
+
+1. **Resume shows previous messages** before continuing the conversation
+2. **Local wallet** for people who want to test without a real wallet
+
+Merged November 11th. [@rsproule](https://x.com/rsproule) sent the bounty same day. Four days total.
+
+## What I'd do again
+
+**Follow the existing patterns.** Could've added a separate `init-wallet` command but that's more surface area. Just made it a third option in `login`. Matches how the codebase already worked.
+
+**Don't skip on security.** Keytar was annoying (native deps, platform testing) but storing credentials in the OS keychain is the right call. Plaintext config files are asking for trouble.
+
+**Ship small first.** Issue said "extremely simple". So I did core features first, then added extras after getting feedback on the PR.
+
+---
+
+Code's in [Merit-Systems/echo](https://github.com/Merit-Systems/echo) under `templates/echo-cli`.
