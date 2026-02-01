@@ -20,7 +20,7 @@ export default function BlogsPage() {
   const publishedBlogs = blogs.filter((blog) => blog.published);
 
   return (
-    <main className="flex flex-col items-center pt-12 md:pt-24 lg:pt-32 pb-10 px-3 md:px-0">
+    <main className="flex flex-col items-center pt-12 md:pt-24 pb-10 px-3 md:px-0">
       <div className="relative max-w-2xl w-full flex flex-col">
         <PageHeader />
 
