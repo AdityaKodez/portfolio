@@ -1,8 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import { NextRequest } from "next/server";
 
-const ai = new GoogleGenAI({});
-
 interface Message {
   role: "user" | "assistant";
   content: string;
@@ -44,6 +42,8 @@ export async function POST(request: NextRequest) {
   const systemInstruction = projectContext
     ? buildSystemPrompt(projectContext)
     : undefined;
+
+  const ai = new GoogleGenAI({});
 
   const stream = await ai.models.generateContentStream({
     model: "gemini-3-flash-preview",
