@@ -190,11 +190,10 @@ function Content({ children }: { children: React.ReactNode }) {
           ref={ref}
           layoutId={`project-card-${slugAsParams}`}
           className={cn(
-            "fixed z-50 left-1/2 -translate-x-1/2 top-0",
+            "fixed z-50 left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2",
             "w-full max-w-[calc(100%-2rem)] sm:max-w-2xl",
             "bg-background border shadow-lg rounded-lg overflow-hidden",
             "flex flex-col max-h-[calc(100vh - 8rem)]",
-            state.isChatMode ? "mt-25" : "mt-50",
             state.isChatMode ? "h-[750px]" : "h-auto",
           )}
           transition={springTransition}
