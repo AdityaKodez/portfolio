@@ -69,6 +69,12 @@ export function useChat(options?: UseChatOptions) {
         });
 
         if (!response.ok) {
+          if (response.status === 429) {
+            const data = await response.json();
+            throw new Error(
+              `Rate limit reached. Please wait ${data.retryAfter} seconds.`
+            );
+          }
           throw new Error("Failed to fetch response");
         }
 
@@ -106,12 +112,17 @@ export function useChat(options?: UseChatOptions) {
             )
           );
         } else {
+          const errorMessage = (error as Error).message.startsWith(
+            "Rate limit reached"
+          )
+            ? (error as Error).message
+            : "Sorry, something went wrong. Please try again.";
           setMessages((prev) =>
             prev.map((msg) =>
               msg.id === assistantMessage.id
                 ? {
                     ...msg,
-                    content: "Sorry, something went wrong. Please try again.",
+                    content: errorMessage,
                     isStreaming: false,
                   }
                 : msg

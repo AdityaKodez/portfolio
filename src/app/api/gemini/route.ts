@@ -1,5 +1,7 @@
+import "@/env";
 import { GoogleGenAI } from "@google/genai";
 import { NextRequest } from "next/server";
+import { geminiRatelimit } from "@/lib/ratelimit";
 
 interface Message {
   role: "user" | "assistant";
@@ -21,7 +23,39 @@ ${project.body}
 Help answer questions about this project. Be concise and helpful. Use markdown formatting when appropriate.`;
 }
 
+function getClientIp(request: NextRequest): string {
+  const forwardedFor = request.headers.get("x-forwarded-for");
+  if (forwardedFor) {
+    return forwardedFor.split(",")[0].trim();
+  }
+  const realIp = request.headers.get("x-real-ip");
+  if (realIp) {
+    return realIp;
+  }
+  return "anonymous";
+}
+
 export async function POST(request: NextRequest) {
+  const ip = getClientIp(request);
+  const { success, reset } = await geminiRatelimit.limit(ip);
+
+  if (!success) {
+    const retryAfter = Math.ceil((reset - Date.now()) / 1000);
+    return new Response(
+      JSON.stringify({
+        error: "Too many requests",
+        message: "You have exceeded the rate limit. Please try again later.",
+        retryAfter,
+      }),
+      {
+        status: 429,
+        headers: {
+          "Content-Type": "application/json",
+          "Retry-After": String(retryAfter),
+        },
+      }
+    );
+  }
   const { messages, projectContext } = (await request.json()) as {
     messages: Message[];
     projectContext?: ProjectContext;
