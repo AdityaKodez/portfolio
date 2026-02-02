@@ -2,7 +2,7 @@
 
 Personal portfolio website built with Next.js 16, featuring a blog, project showcase, and AI-powered interactions.
 
-**Live:** [https://sachi-dev-363173282038.asia-south1.run.app](https://sachi-dev-363173282038.asia-south1.run.app)
+**Live:** [https://sachi-dev-809350176771.asia-southeast1.run.app](https://sachi-dev-809350176771.asia-southeast1.run.app)
 
 ## Tech Stack
 
