@@ -10,7 +10,10 @@
     "lint": "next lint",
     "docker:dev": "docker compose up dev",
     "docker:prod": "docker compose up prod --build",
-    "deploy": "source .env.local && gcloud run deploy sachi-dev --source . --region=asia-south1 --allow-unauthenticated --set-env-vars=GEMINI_API_KEY=$GEMINI_API_KEY"
+    "deploy": "source .env.local && gcloud run deploy sachi-dev --source . --region=asia-southeast1 --allow-unauthenticated --set-env-vars=GEMINI_API_KEY=$GEMINI_API_KEY",
+    "domain:map": "gcloud beta run domain-mappings create --service=sachi-dev --domain=sachi.dev --region=asia-southeast1 && gcloud beta run domain-mappings create --service=sachi-dev --domain=www.sachi.dev --region=asia-southeast1",
+    "domain:status": "gcloud beta run domain-mappings describe --domain=sachi.dev --region=asia-southeast1",
+    "domain:list": "gcloud beta run domain-mappings list --region=asia-southeast1"
   },
   "dependencies": {
     "@google/genai": "^1.39.0",
