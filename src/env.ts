@@ -8,4 +8,5 @@ export const env = createEnv({
     UPSTASH_REDIS_REST_TOKEN: z.string().min(1, "UPSTASH_REDIS_REST_TOKEN is required"),
   },
   experimental__runtimeEnv: process.env,
+  skipValidation: !!process.env.SKIP_ENV_VALIDATION,
 });
