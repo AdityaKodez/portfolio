@@ -7,7 +7,10 @@
     "dev:velite": "velite dev",
     "build": "velite && next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "docker:dev": "docker compose up dev",
+    "docker:prod": "docker compose up prod --build",
+    "deploy": "source .env.local && gcloud run deploy sachi-dev --source . --region=asia-south1 --allow-unauthenticated --set-env-vars=GEMINI_API_KEY=$GEMINI_API_KEY"
   },
   "dependencies": {
     "@google/genai": "^1.39.0",
