@@ -60,25 +60,22 @@ export const metadata: Metadata = {
   },
 };
 
-
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className="bg-background" suppressHydrationWarning>
       <body
         className={cn(
           "min-h-screen bg-background font-sans antialiased",
           fontSans.variable,
           fontHeading.variable,
-          fontMono.variable
+          fontMono.variable,
         )}
       >
-        <RootProviders>
-          {children}
-        </RootProviders>
+        <RootProviders>{children}</RootProviders>
       </body>
     </html>
   );
