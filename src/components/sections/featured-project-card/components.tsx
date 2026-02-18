@@ -583,12 +583,12 @@ function ChatMessages() {
 
   return (
     <motion.div
-      className="flex-1 h-[100px] overflow-hidden"
+      className="flex-1 overflow-hidden"
       layout
       transition={springTransition}
     >
       {cardState.isChatMode && (
-        <ScrollArea ref={scrollRef} className=" h-full p-4 lg:p-6">
+        <ScrollArea ref={scrollRef} className="h-full p-4 lg:p-6">
           <div className="flex flex-col gap-3 py-2">
             {state.messages.map((message) => (
               <ChatMessage key={message.id} message={message} />
@@ -611,11 +611,18 @@ function ChatInput({ placeholder = "Ask Gemini", autoFocus }: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const canSubmit = input.trim() && !state.isLoading;
 
+  const suggestedPrompts = [
+    "Tech stack?",
+    "Hardest bug?",
+    "Features?",
+    "How it works?",
+  ];
+
   useEffect(() => {
-    if (autoFocus) {
+    if (autoFocus && !state.isLoading) {
       textareaRef.current?.focus();
     }
-  }, [autoFocus]);
+  }, [autoFocus, state.isLoading, state.messages.length]);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -652,58 +659,90 @@ function ChatInput({ placeholder = "Ask Gemini", autoFocus }: ChatInputProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <div
-        className={cn(
-          "relative flex items-end",
-          "bg-muted/30 rounded-md",
-          "ring-1 ring-border/50",
-          "focus-within:ring-border focus-within:bg-muted/40",
-          "transition-all duration-200",
+    <div className="flex flex-col gap-2">
+      <AnimatePresence>
+        {state.messages.length === 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 5 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 5 }}
+            className="flex flex-wrap gap-1.5 px-0.5"
+          >
+            {suggestedPrompts.map((prompt, i) => (
+              <motion.button
+                key={prompt}
+                type="button"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ ...springTransition, delay: i * 0.05 }}
+                onClick={() => actions.sendMessage(prompt)}
+                className={cn(
+                  "text-[10px] sm:text-xs px-2.5 py-1 rounded-full border border-border/50",
+                  "bg-muted/30 hover:bg-muted/50 hover:border-border",
+                  "text-muted-foreground hover:text-foreground",
+                  "transition-all duration-200 whitespace-nowrap",
+                )}
+              >
+                {prompt}
+              </motion.button>
+            ))}
+          </motion.div>
         )}
-      >
-        <div className="absolute left-3 bottom-3 pointer-events-none">
-          <GeminiLogo className="size-4" />
-        </div>
-        <textarea
-          ref={textareaRef}
-          rows={1}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={placeholder}
+      </AnimatePresence>
+
+      <form onSubmit={handleSubmit}>
+        <div
           className={cn(
-            "w-full bg-transparent",
-            "pl-10 pr-12 py-2.5 text-sm",
-            "placeholder:text-muted-foreground/50",
-            "focus:outline-none",
-            "resize-none overflow-y-auto",
-            "min-h-[40px] max-h-[80px]",
-          )}
-        />
-        <motion.button
-          type="submit"
-          disabled={!canSubmit}
-          initial={false}
-          animate={{
-            opacity: canSubmit ? 1 : 0.3,
-          }}
-          whileHover={canSubmit ? { scale: 1.05 } : undefined}
-          whileTap={canSubmit ? { scale: 0.95 } : undefined}
-          transition={springTransition}
-          className={cn(
-            "absolute right-1.5 bottom-1.5",
-            "size-8 flex items-center justify-center",
-            "rounded-md",
-            "bg-foreground text-background",
-            "disabled:cursor-not-allowed",
-            "shadow-sm",
+            "relative flex items-end",
+            "bg-muted/30 rounded-md",
+            "ring-1 ring-border/50",
+            "focus-within:ring-border focus-within:bg-muted/40",
+            "transition-all duration-200",
           )}
         >
-          <ArrowUp className="size-4" strokeWidth={2.5} />
-        </motion.button>
-      </div>
-    </form>
+          <div className="absolute left-3 bottom-3 pointer-events-none">
+            <GeminiLogo className="size-4" />
+          </div>
+          <textarea
+            ref={textareaRef}
+            rows={1}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholder}
+            className={cn(
+              "w-full bg-transparent",
+              "pl-10 pr-12 py-2.5 text-sm",
+              "placeholder:text-muted-foreground/50",
+              "focus:outline-none",
+              "resize-none overflow-y-auto",
+              "min-h-[40px] max-h-[80px]",
+            )}
+          />
+          <motion.button
+            type="submit"
+            disabled={!canSubmit}
+            initial={false}
+            animate={{
+              opacity: canSubmit ? 1 : 0.3,
+            }}
+            whileHover={canSubmit ? { scale: 1.05 } : undefined}
+            whileTap={canSubmit ? { scale: 0.95 } : undefined}
+            transition={springTransition}
+            className={cn(
+              "absolute right-1.5 bottom-1.5",
+              "size-8 flex items-center justify-center",
+              "rounded-md",
+              "bg-foreground text-background",
+              "disabled:cursor-not-allowed",
+              "shadow-sm",
+            )}
+          >
+            <ArrowUp className="size-4" strokeWidth={2.5} />
+          </motion.button>
+        </div>
+      </form>
+    </div>
   );
 }
 
