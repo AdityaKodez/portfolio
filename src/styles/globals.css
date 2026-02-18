@@ -146,6 +146,11 @@
   }
 }
 
+html,
+body {
+  scroll-behavior: smooth;
+  scrollbar-gutter: stable both-edges;
+}
 
 ::-moz-selection {
   color: var(--background);
