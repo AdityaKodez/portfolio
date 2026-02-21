@@ -5,6 +5,7 @@ import { Projects } from "@/components/sections/projects";
 import { RecentBlogs } from "@/components/sections/recent-blogs";
 import { GithubContributions, GitmapSkeleton } from "@/components/github-contributions";
 import { Suspense } from "react";
+import { BookACall } from "@/components/sections/book-a-call";
 
 export default function Home() {
   return (
@@ -13,6 +14,7 @@ export default function Home() {
         <PageHeader />
         <Intro />
         <About />
+        <BookACall />
         <Suspense fallback={<GitmapSkeleton className="mt-7 mb-8" />}>
           <GithubContributions />
         </Suspense>
