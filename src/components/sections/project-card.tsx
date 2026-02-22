@@ -1,7 +1,5 @@
 import { ArrowUpRight, Github } from "lucide-react";
 import { ListItemCard } from "@/components/ui/list-item-card";
-import Image from "next/image";
-
 interface ProjectCardProps {
   name: string;
   url: string;
@@ -39,7 +37,7 @@ export function ProjectCard({
               rel="noopener noreferrer"
               className="p-1 rounded hover:bg-background transition-colors"
             >
-              <Image src="/github.svg" alt="Github" width={24} height={24} />
+              <Github className="size-4" />
             </a>
           )}
           <a

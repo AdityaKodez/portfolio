@@ -317,6 +317,15 @@ body {
   }
 }
 
+@utility no-scrollbar {
+  scrollbar-width: 0px;
+  -ms-overflow-style: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* code block */
 
 html.light[data-theme="dark"] {
@@ -332,7 +341,7 @@ html.dark[data-theme="light"] {
 }
 
 [data-rehype-pretty-code-figure] code {
-  @apply grid min-w-full break-words border-none bg-transparent pl-3 text-sm rounded-md;
+  @apply grid min-w-full wrap-break-word border-none bg-transparent pl-3 text-sm rounded-md;
   counter-reset: line;
   box-decoration-break: clone;
 }

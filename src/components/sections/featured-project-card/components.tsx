@@ -18,6 +18,7 @@ import {
 } from "./context";
 import type { ChatMessage } from "./use-chat";
 import { ProjectContext, useChat as useChatHook } from "./use-chat";
+
 const springTransition = { type: "spring", bounce: 0, duration: 0.3 } as const;
 
 interface ProviderProps {
@@ -131,7 +132,7 @@ function TriggerLinks() {
         className="p-1 rounded hover:bg-background transition-colors"
         onClick={(e) => e.stopPropagation()}
       >
-        <Image src="/github.svg" alt="Github" width={24} height={24} />
+        <Github className="size-3.5" />
       </Link>
       <Link
         href={url}
@@ -198,7 +199,7 @@ function Content({ children }: { children: React.ReactNode }) {
             "fixed z-50 left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2",
             "w-full max-w-[calc(100%-2rem)] sm:max-w-2xl",
             "bg-background border shadow-lg rounded-lg overflow-hidden",
-            "flex flex-col max-h-[calc(100vh - 8rem)]",
+            "flex flex-col max-h-[calc(100vh - 8rem)] no-scrollbar",
             state.isChatMode ? "h-[750px]" : "h-auto",
           )}
           transition={springTransition}
@@ -299,7 +300,7 @@ function Links() {
         className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
         onClick={(e) => e.stopPropagation()}
       >
-        <Image src="/github.svg" alt="Github" width={24} height={24} />
+        <Github className="size-3.5" />
         <span>GitHub</span>
       </a>
       <a
@@ -497,16 +498,13 @@ function ChatMessage({ message }: { message: ChatMessage }) {
 
   if (isUser) {
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={springTransition}
+      <div
         className="flex justify-end"
       >
-        <div className="max-w-[85%] px-3.5 py-2 rounded-xl text-sm bg-muted/50">
+        <div className="max-w-[85%] px-3.5 py-2 rounded-lg text-sm bg-muted/50">
           {message.content}
         </div>
-      </motion.div>
+      </div>
     );
   }
 
@@ -515,10 +513,7 @@ function ChatMessage({ message }: { message: ChatMessage }) {
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={springTransition}
+    <div
       className="flex justify-start"
     >
       <div className="px-3.5 py-2.5 rounded-lg bg-muted/30 text-sm max-w-[85%]">
@@ -566,7 +561,7 @@ function ChatMessage({ message }: { message: ChatMessage }) {
           />
         )}
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -582,21 +577,19 @@ function ChatMessages() {
   }, [state.messages]);
 
   return (
-    <motion.div
-      className="flex-1 overflow-hidden"
-      layout
-      transition={springTransition}
+    <div
+      className="flex-1 overflow-hidden no-scrollbar"
     >
       {cardState.isChatMode && (
-        <ScrollArea ref={scrollRef} className="h-full p-4 lg:p-6">
+        <div ref={scrollRef} className="h-full p-4 lg:p-6 overflow-y-auto no-scrollbar">
           <div className="flex flex-col gap-3 py-2">
             {state.messages.map((message) => (
               <ChatMessage key={message.id} message={message} />
             ))}
           </div>
-        </ScrollArea>
+        </div>
       )}
-    </motion.div>
+    </div>
   );
 }
 
@@ -730,7 +723,7 @@ function ChatInput({ placeholder = "Ask Gemini", autoFocus }: ChatInputProps) {
             whileTap={canSubmit ? { scale: 0.95 } : undefined}
             transition={springTransition}
             className={cn(
-              "absolute right-1.5 bottom-1.5",
+              "absolute right-1 top-1/2 -translate-y-1/2",
               "size-8 flex items-center justify-center",
               "rounded-md",
               "bg-foreground text-background",

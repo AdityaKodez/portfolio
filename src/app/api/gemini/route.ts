@@ -3,12 +3,9 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import {
   convertToModelMessages,
   streamText,
-  tool,
   type UIMessage,
-  stepCountIs,
 } from "ai";
 import { NextRequest } from "next/server";
-import { z } from "zod";
 import { geminiRatelimit } from "@/lib/ratelimit";
 import { redis } from "@/lib/redis";
 
@@ -83,7 +80,10 @@ async function fetchReadme(githubUrl: string): Promise<string | null> {
   }
 }
 
-function buildSystemPrompt(project: ProjectContext | undefined): string {
+function buildSystemPrompt(
+  project: ProjectContext | undefined,
+  readme: string | null,
+): string {
   const baseInstructions = `You are a helpful assistant on Sachi Goyal's portfolio website (sachi.dev).
 CRITICAL: Be extremely concise. Avoid all filler, pleasantries, and lengthy introductions. 
 Provide direct answers. If a question can be answered in one sentence, do so.
@@ -95,8 +95,15 @@ Use markdown for structure (lists, bolding) but keep text minimal.`;
 
   return `${baseInstructions}
 You are discussing the project "${project.title}".
-Use the get_project_context tool ONLY if project-specific details are missing from your current context.
-Focus strictly on "${project.title}" and Sachi's work on it.`;
+Focus strictly on "${project.title}" and Sachi's work on it.
+
+Project context:
+- Title: ${project.title}
+- Excerpt: ${project.excerpt}
+- GitHub: ${project.github}
+
+README content:
+${readme ?? "README not available."}`;
 }
 
 function getClientIp(request: NextRequest): string {
@@ -141,38 +148,14 @@ export async function POST(request: NextRequest) {
     });
   }
 
+  const readme = projectContext
+    ? await fetchReadme(projectContext.github)
+    : null;
+
   const result = streamText({
     model: google("gemini-2.5-flash-lite"),
-    system: buildSystemPrompt(projectContext),
+    system: buildSystemPrompt(projectContext, readme),
     messages: await convertToModelMessages(messages),
-    stopWhen: stepCountIs(projectContext ? 2 : 1),
-    tools: projectContext
-      ? {
-          get_project_context: tool({
-            description:
-              "Fetch project metadata and README content for precise project answers.",
-            inputSchema: z.object({
-              includeReadme: z
-                .boolean()
-                .optional()
-                .default(true)
-                .describe("Include README content in the result."),
-            }),
-            execute: async ({ includeReadme }) => {
-              const readme = includeReadme
-                ? await fetchReadme(projectContext.github)
-                : null;
-
-              return {
-                title: projectContext.title,
-                excerpt: projectContext.excerpt,
-                github: projectContext.github,
-                readme,
-              };
-            },
-          }),
-        }
-      : undefined,
   });
 
   return result.toUIMessageStreamResponse({
