@@ -1,8 +1,7 @@
 import { siteConfig } from "@/config/site.config";
-import { FileText, Github, Linkedin } from "lucide-react";
+import { FileText, Linkedin } from "lucide-react";
 import { Icons } from "@/components/icons";
 import Link from "next/link";
-import Image from "next/image";
 
 export function Socials() {
   return (
@@ -14,7 +13,7 @@ export function Socials() {
         aria-label="GitHub"
         className="flex items-center justify-center size-7.5 hover:text-primary transition-colors p-1.5 hover:bg-secondary rounded-md duration-150"
       >
-        <Image src="/github.svg" alt="Github" width={24} height={24} />
+        <Icons.Github className="h-4 w-4" />
       </a>
       <a
         href={siteConfig.socials.x}
