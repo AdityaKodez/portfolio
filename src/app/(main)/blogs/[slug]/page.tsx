@@ -2,7 +2,6 @@ import { blogs } from "#site/content";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { siteConfig } from "@/config/site.config";
-import { PageHeader } from "@/components/sections/page-header";
 import {
   BlogHeader,
   BlogContent,
@@ -103,28 +102,24 @@ export default async function BlogPost({ params }: BlogPageParams) {
       : null;
 
   return (
-    <main className="flex flex-col items-center pt-12 md:pt-24 pb-10 px-3 md:px-0">
-      <article className="relative max-w-2xl w-full flex flex-col">
-        <PageHeader />
+    <article className="relative">
+      <div className="absolute h-full w-10 -left-12 top-8">
+        <Link href="/blogs" className="sticky top-4">
+          <ArrowLeft className="size-4" />
+        </Link>
+      </div>
 
-        <div className="absolute h-full w-10 -left-12 top-14">
-          <Link href="/blogs" className="sticky top-4">
-            <ArrowLeft className="size-4" />
-          </Link>
-        </div>
+      <BlogHeader
+        title={blog.title}
+        date={blog.date}
+        author={blog.author}
+        category={blog.category}
+        tags={blog.tags}
+      />
 
-        <BlogHeader
-          title={blog.title}
-          date={blog.date}
-          author={blog.author}
-          category={blog.category}
-          tags={blog.tags}
-        />
+      <BlogContent code={blog.body} />
 
-        <BlogContent code={blog.body} />
-
-        <BlogPagination prevBlog={prevBlog} nextBlog={nextBlog} />
-      </article>
-    </main>
+      <BlogPagination prevBlog={prevBlog} nextBlog={nextBlog} />
+    </article>
   );
 }

@@ -1,5 +1,4 @@
 import { projects } from "#site/content";
-import { PageHeader } from "@/components/sections/page-header";
 import { ProjectsList } from "@/components/sections/projects-list";
 import type { Metadata } from "next";
 import { siteConfig } from "@/config/site.config";
@@ -18,18 +17,14 @@ export const metadata: Metadata = {
 
 export default function ProjectsPage() {
   return (
-    <main className="flex flex-col items-center pt-12 md:pt-24 pb-10 px-3 md:px-0">
-      <div className="relative max-w-2xl w-full flex flex-col">
-        <PageHeader />
-
-        <div className="absolute h-full w-10 -left-12 top-14">
-          <Link href="/" className="sticky top-4">
-            <ArrowLeft className="size-4" />
-          </Link>
-        </div>
-
-        <ProjectsList projects={projects} />
+    <div className="relative">
+      <div className="absolute h-full w-10 -left-12 top-14">
+        <Link href="/" className="sticky top-4">
+          <ArrowLeft className="size-4" />
+        </Link>
       </div>
-    </main>
+
+      <ProjectsList projects={projects} />
+    </div>
   );
 }
