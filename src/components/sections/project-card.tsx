@@ -1,6 +1,5 @@
 import { ArrowUpRight, Github } from "lucide-react";
 import { ListItemCard } from "@/components/ui/list-item-card";
-
 interface ProjectCardProps {
   name: string;
   url: string;
@@ -38,7 +37,7 @@ export function ProjectCard({
               rel="noopener noreferrer"
               className="p-1 rounded hover:bg-background transition-colors"
             >
-              <Github className="size-3.5 text-muted-foreground hover:text-foreground transition-colors" />
+              <Github className="size-4" />
             </a>
           )}
           <a

@@ -1,17 +1,23 @@
 "use client";
 
-import React, { useRef, useEffect, useCallback, useState } from "react";
-import { ArrowUpRight, Github, X, ArrowUp } from "lucide-react";
-import { motion, AnimatePresence } from "motion/react";
-import Image from "next/image";
-import ReactMarkdown from "react-markdown";
+import type { Projects } from "#site/content";
 import { MDXContentRenderer } from "@/components/mdx/mdx-content-renderer";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { ProjectCardContext, ChatContext, useProjectCard, useChat } from "./context";
-import { useChat as useChatHook, type ProjectContext } from "./use-chat";
-import type { Projects } from "#site/content";
+import { ArrowUp, ArrowUpRight, Github, X } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import Image from "next/image";
+import Link from "next/link";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import {
+  ChatContext,
+  ProjectCardContext,
+  useChat,
+  useProjectCard,
+} from "./context";
 import type { ChatMessage } from "./use-chat";
+import { ProjectContext, useChat as useChatHook } from "./use-chat";
 
 const springTransition = { type: "spring", bounce: 0, duration: 0.3 } as const;
 
@@ -68,7 +74,7 @@ function Trigger({ children }: { children: React.ReactNode }) {
       layoutId={`project-card-${slugAsParams}`}
       className={cn(
         "relative p-2 bg-background rounded-lg cursor-pointer",
-        "hover:bg-muted/50 transition-colors group"
+        "hover:bg-muted/50 transition-colors group",
       )}
       whileTap={{ scale: 0.98 }}
       onClick={actions.open}
@@ -119,16 +125,16 @@ function TriggerLinks() {
       className="flex items-center gap-1 shrink-0 sm:invisible sm:group-hover:visible"
       transition={springTransition}
     >
-      <a
+      <Link
         href={github}
         target="_blank"
         rel="noopener noreferrer"
         className="p-1 rounded hover:bg-background transition-colors"
         onClick={(e) => e.stopPropagation()}
       >
-        <Github className="size-3.5 text-muted-foreground hover:text-foreground transition-colors" />
-      </a>
-      <a
+        <Github className="size-3.5" />
+      </Link>
+      <Link
         href={url}
         target="_blank"
         rel="noopener noreferrer"
@@ -136,7 +142,7 @@ function TriggerLinks() {
         onClick={(e) => e.stopPropagation()}
       >
         <ArrowUpRight className="size-3.5 text-muted-foreground hover:text-foreground transition-colors" />
-      </a>
+      </Link>
     </motion.div>
   );
 }
@@ -170,7 +176,7 @@ function Content({ children }: { children: React.ReactNode }) {
         actions.close();
       }
     },
-    [actions]
+    [actions],
   );
 
   useEffect(() => {
@@ -193,7 +199,7 @@ function Content({ children }: { children: React.ReactNode }) {
             "fixed z-50 left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2",
             "w-full max-w-[calc(100%-2rem)] sm:max-w-2xl",
             "bg-background border shadow-lg rounded-lg overflow-hidden",
-            "flex flex-col max-h-[calc(100vh - 8rem)]",
+            "flex flex-col max-h-[calc(100vh - 8rem)] no-scrollbar",
             state.isChatMode ? "h-[750px]" : "h-auto",
           )}
           transition={springTransition}
@@ -239,11 +245,7 @@ function Banner({ children }: { children?: React.ReactNode }) {
 }
 
 function Header({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="p-4 lg:p-6 shrink-0">
-      {children}
-    </div>
-  );
+  return <div className="p-4 lg:p-6 shrink-0">{children}</div>;
 }
 
 function Title() {
@@ -298,7 +300,7 @@ function Links() {
         className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
         onClick={(e) => e.stopPropagation()}
       >
-        <Github className="size-3.5 text-muted-foreground hover:text-foreground transition-colors" />
+        <Github className="size-3.5" />
         <span>GitHub</span>
       </a>
       <a
@@ -323,7 +325,7 @@ function CloseButton() {
       className={cn(
         "absolute top-3 right-3 p-1 rounded-sm",
         "bg-background/80 backdrop-blur-sm border border-border/50",
-        "hover:bg-background transition-colors"
+        "hover:bg-background transition-colors",
       )}
       onClick={actions.close}
       aria-label="Close"
@@ -351,8 +353,14 @@ function Body() {
         <MDXContentRenderer
           code={state.project.body}
           components={{
-            p: ({ className, ...props }: React.HTMLAttributes<HTMLParagraphElement>) => (
-              <p className={cn("leading-snug not-first:mt-2", className)} {...props} />
+            p: ({
+              className,
+              ...props
+            }: React.HTMLAttributes<HTMLParagraphElement>) => (
+              <p
+                className={cn("leading-snug not-first:mt-2", className)}
+                {...props}
+              />
             ),
           }}
         />
@@ -377,11 +385,12 @@ function ChatProvider({ projectContext, children }: ChatProviderProps) {
   const resetRef = useRef(chat.reset);
   resetRef.current = chat.reset;
 
-  useEffect(() => {
-    if (!cardState.isActive) {
-      resetRef.current();
-    }
-  }, [cardState.isActive]);
+  // Removed reset on close logic to persist chat history
+  //   useEffect(() => {
+  //     if (!cardState.isActive) {
+  //       resetRef.current();
+  //     }
+  //   }, [cardState.isActive]);
 
   return (
     <ChatContext
@@ -410,7 +419,13 @@ function GeminiLogo({ className }: { className?: string }) {
       className={className}
     >
       <defs>
-        <linearGradient id={`gemini-grad-${id}`} x1="0%" y1="0%" x2="100%" y2="100%">
+        <linearGradient
+          id={`gemini-grad-${id}`}
+          x1="0%"
+          y1="0%"
+          x2="100%"
+          y2="100%"
+        >
           <stop offset="0%" stopColor="#4285F4">
             <animate
               attributeName="stop-color"
@@ -483,16 +498,13 @@ function ChatMessage({ message }: { message: ChatMessage }) {
 
   if (isUser) {
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={springTransition}
+      <div
         className="flex justify-end"
       >
-        <div className="max-w-[85%] px-3.5 py-2 rounded-xl text-sm bg-muted/50">
+        <div className="max-w-[85%] px-3.5 py-2 rounded-lg text-sm bg-muted/50">
           {message.content}
         </div>
-      </motion.div>
+      </div>
     );
   }
 
@@ -501,10 +513,7 @@ function ChatMessage({ message }: { message: ChatMessage }) {
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={springTransition}
+    <div
       className="flex justify-start"
     >
       <div className="px-3.5 py-2.5 rounded-lg bg-muted/30 text-sm max-w-[85%]">
@@ -514,16 +523,24 @@ function ChatMessage({ message }: { message: ChatMessage }) {
               <p className="leading-relaxed not-first:mt-2">{children}</p>
             ),
             ul: ({ children }) => (
-              <ul className="list-disc list-inside mt-2 space-y-1">{children}</ul>
+              <ul className="list-disc list-inside mt-2 space-y-1">
+                {children}
+              </ul>
             ),
             ol: ({ children }) => (
-              <ol className="list-decimal list-inside mt-2 space-y-1">{children}</ol>
+              <ol className="list-decimal list-inside mt-2 space-y-1">
+                {children}
+              </ol>
             ),
             code: ({ children }) => (
-              <code className="bg-background/50 px-1.5 py-0.5 rounded text-xs font-mono">{children}</code>
+              <code className="bg-background/50 px-1.5 py-0.5 rounded text-xs font-mono">
+                {children}
+              </code>
             ),
             pre: ({ children }) => (
-              <pre className="bg-background/50 p-3 rounded-md mt-2 overflow-x-auto text-xs">{children}</pre>
+              <pre className="bg-background/50 p-3 rounded-md mt-2 overflow-x-auto text-xs">
+                {children}
+              </pre>
             ),
             strong: ({ children }) => (
               <strong className="font-semibold">{children}</strong>
@@ -536,11 +553,15 @@ function ChatMessage({ message }: { message: ChatMessage }) {
           <motion.span
             className="inline-block w-1.5 h-4 ml-0.5 bg-foreground/70 rounded-sm align-middle"
             animate={{ opacity: [1, 0] }}
-            transition={{ duration: 0.5, repeat: Infinity, repeatType: "reverse" }}
+            transition={{
+              duration: 0.5,
+              repeat: Infinity,
+              repeatType: "reverse",
+            }}
           />
         )}
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -556,21 +577,19 @@ function ChatMessages() {
   }, [state.messages]);
 
   return (
-    <motion.div
-      className="flex-1 min-h-0 overflow-hidden"
-      layout
-      transition={springTransition}
+    <div
+      className="flex-1 overflow-hidden no-scrollbar"
     >
       {cardState.isChatMode && (
-        <ScrollArea ref={scrollRef} className="h-full p-4 lg:p-6">
+        <div ref={scrollRef} className="h-full p-4 lg:p-6 overflow-y-auto no-scrollbar">
           <div className="flex flex-col gap-3 py-2">
             {state.messages.map((message) => (
               <ChatMessage key={message.id} message={message} />
             ))}
           </div>
-        </ScrollArea>
+        </div>
       )}
-    </motion.div>
+    </div>
   );
 }
 
@@ -582,88 +601,146 @@ interface ChatInputProps {
 function ChatInput({ placeholder = "Ask Gemini", autoFocus }: ChatInputProps) {
   const { state, actions } = useChat();
   const [input, setInput] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const canSubmit = input.trim() && !state.isLoading;
 
+  const suggestedPrompts = [
+    "Tech stack?",
+    "Hardest bug?",
+    "Features?",
+    "How it works?",
+  ];
+
   useEffect(() => {
-    if (autoFocus) {
-      inputRef.current?.focus();
+    if (autoFocus && !state.isLoading) {
+      textareaRef.current?.focus();
     }
-  }, [autoFocus]);
+  }, [autoFocus, state.isLoading, state.messages.length]);
+
+  // Auto-resize textarea
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.style.height = "inherit";
+      const scrollHeight = textarea.scrollHeight;
+      textarea.style.height = `${Math.min(scrollHeight, 200)}px`;
+    }
+  }, [input]);
 
   const handleSubmit = useCallback(
-    (e: React.FormEvent) => {
-      e.preventDefault();
+    (e?: React.FormEvent) => {
+      e?.preventDefault();
       if (input.trim() && !state.isLoading) {
         actions.sendMessage(input.trim());
         setInput("");
+        if (textareaRef.current) {
+          textareaRef.current.style.height = "inherit";
+        }
         requestAnimationFrame(() => {
-          inputRef.current?.focus();
+          textareaRef.current?.focus();
         });
       }
     },
-    [input, state.isLoading, actions]
+    [input, state.isLoading, actions],
   );
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit();
+    }
+  };
+
   return (
-    <form onSubmit={handleSubmit}>
-      <div
-        className={cn(
-          "relative flex items-center",
-          "bg-muted/30 rounded-md",
-          "ring-1 ring-border/50",
-          "focus-within:ring-border focus-within:bg-muted/40",
-          "transition-all duration-200"
+    <div className="flex flex-col gap-2">
+      <AnimatePresence>
+        {state.messages.length === 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 5 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 5 }}
+            className="flex flex-wrap gap-1.5 px-0.5"
+          >
+            {suggestedPrompts.map((prompt, i) => (
+              <motion.button
+                key={prompt}
+                type="button"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ ...springTransition, delay: i * 0.05 }}
+                onClick={() => actions.sendMessage(prompt)}
+                className={cn(
+                  "text-[10px] sm:text-xs px-2.5 py-1 rounded-full border border-border/50",
+                  "bg-muted/30 hover:bg-muted/50 hover:border-border",
+                  "text-muted-foreground hover:text-foreground",
+                  "transition-all duration-200 whitespace-nowrap",
+                )}
+              >
+                {prompt}
+              </motion.button>
+            ))}
+          </motion.div>
         )}
-      >
-        <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
-          <GeminiLogo className="size-4" />
-        </div>
-        <input
-          ref={inputRef}
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder={placeholder}
+      </AnimatePresence>
+
+      <form onSubmit={handleSubmit}>
+        <div
           className={cn(
-            "w-full bg-transparent",
-            "pl-10 pr-12 py-2.5 text-sm",
-            "placeholder:text-muted-foreground/50",
-            "focus:outline-none"
-          )}
-        />
-        <motion.button
-          type="submit"
-          disabled={!canSubmit}
-          initial={false}
-          animate={{
-            opacity: canSubmit ? 1 : 0.3,
-          }}
-          whileHover={canSubmit ? { scale: 1.05 } : undefined}
-          whileTap={canSubmit ? { scale: 0.95 } : undefined}
-          transition={springTransition}
-          className={cn(
-            "absolute right-1.5 top-1/2 -translate-y-1/2",
-            "size-8 flex items-center justify-center",
-            "rounded-md",
-            "bg-foreground text-background",
-            "disabled:cursor-not-allowed",
-            "shadow-sm"
+            "relative flex items-end",
+            "bg-muted/30 rounded-md",
+            "ring-1 ring-border/50",
+            "focus-within:ring-border focus-within:bg-muted/40",
+            "transition-all duration-200",
           )}
         >
-          <ArrowUp className="size-4" strokeWidth={2.5} />
-        </motion.button>
-      </div>
-    </form>
+          <div className="absolute left-3 bottom-3 pointer-events-none">
+            <GeminiLogo className="size-4" />
+          </div>
+          <textarea
+            ref={textareaRef}
+            rows={1}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholder}
+            className={cn(
+              "w-full bg-transparent",
+              "pl-10 pr-12 py-2.5 text-sm",
+              "placeholder:text-muted-foreground/50",
+              "focus:outline-none",
+              "resize-none overflow-y-auto",
+              "min-h-[40px] max-h-[80px]",
+            )}
+          />
+          <motion.button
+            type="submit"
+            disabled={!canSubmit}
+            initial={false}
+            animate={{
+              opacity: canSubmit ? 1 : 0.3,
+            }}
+            whileHover={canSubmit ? { scale: 1.05 } : undefined}
+            whileTap={canSubmit ? { scale: 0.95 } : undefined}
+            transition={springTransition}
+            className={cn(
+              "absolute right-1 top-1/2 -translate-y-1/2",
+              "size-8 flex items-center justify-center",
+              "rounded-md",
+              "bg-foreground text-background",
+              "disabled:cursor-not-allowed",
+              "shadow-sm",
+            )}
+          >
+            <ArrowUp className="size-4" strokeWidth={2.5} />
+          </motion.button>
+        </div>
+      </form>
+    </div>
   );
 }
 
 function ChatInputWrapper({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="p-4 lg:p-6 shrink-0">
-      {children}
-    </div>
-  );
+  return <div className="p-4 lg:p-6 shrink-0">{children}</div>;
 }
 
 export const ProjectCard = {

@@ -16,6 +16,8 @@
     "domain:list": "gcloud beta run domain-mappings list --region=asia-southeast1"
   },
   "dependencies": {
+    "@ai-sdk/google": "^3.0.29",
+    "@ai-sdk/react": "^3.0.92",
     "@calcom/embed-react": "^1.5.3",
     "@google/genai": "^1.39.0",
     "@radix-ui/react-accordion": "^1.2.12",
@@ -40,6 +42,7 @@
     "next-themes": "^0.4.6",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
+    "ai": "^6.0.90",
     "react-markdown": "^10.1.0",
     "tailwind-merge": "^3.4.0",
     "zod": "^4.3.6"

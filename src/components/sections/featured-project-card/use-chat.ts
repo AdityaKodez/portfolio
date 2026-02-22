@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useChat as useAIChat } from "@ai-sdk/react";
+import { UIMessage, DefaultChatTransport } from "ai";
+import { useCallback, useMemo, useRef } from "react";
 
 export interface ChatMessage {
   id: string;
@@ -20,139 +22,118 @@ interface UseChatOptions {
   projectContext?: ProjectContext;
 }
 
+function getMessageText(message: UIMessage): string {
+  return message.parts
+    .map((part) => {
+      if (part.type === "text") {
+        return part.text;
+      }
+      return "";
+    })
+    .join("")
+    .trim();
+}
+
+function isChatRole(role: string): role is "user" | "assistant" {
+  return role === "user" || role === "assistant";
+}
+
 export function useChat(options?: UseChatOptions) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const abortControllerRef = useRef<AbortController | null>(null);
+  const hasStartedChatRef = useRef(false);
+  const transport = new DefaultChatTransport({
+    api: "/api/gemini",
+  });
+  const {
+    messages: uiMessages,
+    sendMessage,
+    stop,
+    setMessages,
+    status,
+    error,
+  } = useAIChat({
+    transport,
+  });
 
-  const sendMessage = useCallback(
-    async (content: string) => {
-      if (!content.trim() || isLoading) return;
+  const isLoading = status === "submitted" || status === "streaming";
 
-      const isFirstMessage = messages.length === 0;
+  const messages = useMemo<ChatMessage[]>(() => {
+    const mapped = uiMessages
+      .filter((message) => isChatRole(message.role))
+      .map((message) => ({
+        id: message.id,
+        role: message.role as "user" | "assistant",
+        content: getMessageText(message),
+        isStreaming: false,
+      }))
+      .filter(
+        (message) => message.role === "user" || message.content.length > 0,
+      );
 
-      const userMessage: ChatMessage = {
-        id: crypto.randomUUID(),
-        role: "user",
-        content: content.trim(),
-      };
-
-      const assistantMessage: ChatMessage = {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: "",
-        isStreaming: true,
-      };
-
-      setMessages((prev) => [...prev, userMessage, assistantMessage]);
-      setIsLoading(true);
-
-      if (isFirstMessage && options?.onFirstMessage) {
-        options.onFirstMessage();
-      }
-
-      abortControllerRef.current = new AbortController();
-
-      try {
-        const allMessages = [...messages, userMessage];
-        const response = await fetch("/api/gemini", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            messages: allMessages.map((m) => ({
-              role: m.role,
-              content: m.content,
-            })),
-            projectContext: options?.projectContext,
-          }),
-          signal: abortControllerRef.current.signal,
+    if (isLoading) {
+      const lastMessage = mapped[mapped.length - 1];
+      if (!lastMessage || lastMessage.role !== "assistant") {
+        mapped.push({
+          id: "assistant-pending",
+          role: "assistant",
+          content: "",
+          isStreaming: true,
         });
-
-        if (!response.ok) {
-          if (response.status === 429) {
-            const data = await response.json();
-            throw new Error(
-              `Rate limit reached. Please wait ${data.retryAfter} seconds.`
-            );
-          }
-          throw new Error("Failed to fetch response");
-        }
-
-        const reader = response.body?.getReader();
-        if (!reader) throw new Error("No reader available");
-
-        const decoder = new TextDecoder();
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          const text = decoder.decode(value, { stream: true });
-          setMessages((prev) =>
-            prev.map((msg) =>
-              msg.id === assistantMessage.id
-                ? { ...msg, content: msg.content + text }
-                : msg
-            )
-          );
-        }
-
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === assistantMessage.id ? { ...msg, isStreaming: false } : msg
-          )
-        );
-      } catch (error) {
-        if ((error as Error).name === "AbortError") {
-          setMessages((prev) =>
-            prev.map((msg) =>
-              msg.id === assistantMessage.id
-                ? { ...msg, isStreaming: false }
-                : msg
-            )
-          );
-        } else {
-          const errorMessage = (error as Error).message.startsWith(
-            "Rate limit reached"
-          )
-            ? (error as Error).message
-            : "Sorry, something went wrong. Please try again.";
-          setMessages((prev) =>
-            prev.map((msg) =>
-              msg.id === assistantMessage.id
-                ? {
-                    ...msg,
-                    content: errorMessage,
-                    isStreaming: false,
-                  }
-                : msg
-            )
-          );
-        }
-      } finally {
-        setIsLoading(false);
-        abortControllerRef.current = null;
+      } else {
+        lastMessage.isStreaming = true;
       }
+    }
+
+    if (status === "error" && error && !isLoading) {
+      mapped.push({
+        id: "assistant-error",
+        role: "assistant",
+        content:
+          error.message || "Sorry, something went wrong. Please try again.",
+        isStreaming: false,
+      });
+    }
+
+    return mapped;
+  }, [uiMessages, isLoading, status, error]);
+
+  const wrappedSendMessage = useCallback(
+    (content: string) => {
+      const trimmed = content.trim();
+      if (!trimmed || isLoading) return;
+
+      if (!hasStartedChatRef.current) {
+        hasStartedChatRef.current = true;
+        options?.onFirstMessage?.();
+      }
+
+      void sendMessage(
+        {
+          text: trimmed,
+        },
+        {
+          body: {
+            projectContext: options?.projectContext,
+          },
+        },
+      );
     },
-    [messages, isLoading, options]
+    [isLoading, options, sendMessage],
   );
 
   const stopGeneration = useCallback(() => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-  }, []);
+    stop();
+  }, [stop]);
 
   const reset = useCallback(() => {
-    stopGeneration();
+    stop();
+    hasStartedChatRef.current = false;
     setMessages([]);
-    setIsLoading(false);
-  }, [stopGeneration]);
+  }, [setMessages, stop]);
 
   return {
     messages,
     isLoading,
-    sendMessage,
+    sendMessage: wrappedSendMessage,
     stopGeneration,
     reset,
   };

@@ -1,12 +1,13 @@
 import "@/env";
-import { GoogleGenAI } from "@google/genai";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import {
+  convertToModelMessages,
+  streamText,
+  type UIMessage,
+} from "ai";
 import { NextRequest } from "next/server";
 import { geminiRatelimit } from "@/lib/ratelimit";
-
-interface Message {
-  role: "user" | "assistant";
-  content: string;
-}
+import { redis } from "@/lib/redis";
 
 interface ProjectContext {
   title: string;
@@ -14,42 +15,102 @@ interface ProjectContext {
   github: string;
 }
 
-async function fetchReadme(githubUrl: string): Promise<string | null> {
+const README_CACHE_TTL_SECONDS = 60 * 60 * 24;
+const README_MISS_TTL_SECONDS = 60 * 30;
+const README_MISS_SENTINEL = "__README_NOT_FOUND__";
+
+const google = createGoogleGenerativeAI({
+  apiKey: process.env.GEMINI_API_KEY,
+});
+
+function parseGithubRepo(
+  githubUrl: string,
+): { owner: string; repo: string } | null {
   try {
-    const repo = githubUrl.replace(/\/$/, "").split("/").pop();
+    const pathname = new URL(githubUrl).pathname.replace(/^\/+|\/+$/g, "");
+    const [owner, repoRaw] = pathname.split("/");
+    if (!owner || !repoRaw) return null;
+    const repo = repoRaw.replace(/\.git$/i, "");
     if (!repo) return null;
-    const url = `https://raw.githubusercontent.com/sachigoyal/${repo}/refs/heads/main/README.md`;
-    const res = await fetch(url, { next: { revalidate: 3600 } });
-    if (!res.ok) return null;
-    return await res.text();
+    return { owner, repo };
   } catch {
     return null;
   }
 }
 
-function buildSystemPrompt(project: ProjectContext, readme: string | null): string {
-  const readmeSection = readme
-    ? `\n\nHere is the project's README:\n${readme}`
-    : "";
+async function fetchReadmeFromGitHub(
+  owner: string,
+  repo: string,
+): Promise<string | null> {
+  for (const branch of ["main", "master"]) {
+    const url = `https://raw.githubusercontent.com/${owner}/${repo}/refs/heads/${branch}/README.md`;
+    const res = await fetch(url);
+    if (res.ok) {
+      return await res.text();
+    }
+  }
+  return null;
+}
 
-  return `You are a helpful assistant on Sachi Goyal's portfolio website (sachi.dev).
-Sachi is a software developer who builds functional web applications using React, Next.js, TailwindCSS, and Shadcn/UI.
+async function fetchReadme(githubUrl: string): Promise<string | null> {
+  try {
+    const parsed = parseGithubRepo(githubUrl);
+    if (!parsed) return null;
 
+    const cacheKey = `cache:gemini:readme:${parsed.owner}:${parsed.repo}`;
+    const cached = await redis.get<string>(cacheKey);
+
+    if (cached === README_MISS_SENTINEL) return null;
+    if (typeof cached === "string" && cached.length > 0) return cached;
+
+    const readme = await fetchReadmeFromGitHub(parsed.owner, parsed.repo);
+    if (!readme) {
+      await redis.set(cacheKey, README_MISS_SENTINEL, {
+        ex: README_MISS_TTL_SECONDS,
+      });
+      return null;
+    }
+
+    await redis.set(cacheKey, readme, {
+      ex: README_CACHE_TTL_SECONDS,
+    });
+    return readme;
+  } catch {
+    return null;
+  }
+}
+
+function buildSystemPrompt(
+  project: ProjectContext | undefined,
+  readme: string | null,
+): string {
+  const baseInstructions = `You are a helpful assistant on Sachi Goyal's portfolio website (sachi.dev).
+CRITICAL: Be extremely concise. Avoid all filler, pleasantries, and lengthy introductions. 
+Provide direct answers. If a question can be answered in one sentence, do so.
+Use markdown for structure (lists, bolding) but keep text minimal.`;
+
+  if (!project) {
+    return baseInstructions;
+  }
+
+  return `${baseInstructions}
 You are discussing the project "${project.title}".
-Project summary: ${project.excerpt}${readmeSection}
+Focus strictly on "${project.title}" and Sachi's work on it.
 
-Help answer questions about this project. Be concise and helpful. Use markdown formatting when appropriate.`;
+Project context:
+- Title: ${project.title}
+- Excerpt: ${project.excerpt}
+- GitHub: ${project.github}
+
+README content:
+${readme ?? "README not available."}`;
 }
 
 function getClientIp(request: NextRequest): string {
   const forwardedFor = request.headers.get("x-forwarded-for");
-  if (forwardedFor) {
-    return forwardedFor.split(",")[0].trim();
-  }
+  if (forwardedFor) return forwardedFor.split(",")[0].trim();
   const realIp = request.headers.get("x-real-ip");
-  if (realIp) {
-    return realIp;
-  }
+  if (realIp) return realIp;
   return "anonymous";
 }
 
@@ -71,11 +132,12 @@ export async function POST(request: NextRequest) {
           "Content-Type": "application/json",
           "Retry-After": String(retryAfter),
         },
-      }
+      },
     );
   }
+
   const { messages, projectContext } = (await request.json()) as {
-    messages: Message[];
+    messages: UIMessage[];
     projectContext?: ProjectContext;
   };
 
@@ -86,52 +148,19 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  const contents = messages.map((m) => ({
-    role: m.role === "user" ? "user" : "model",
-    parts: [{ text: m.content }],
-  }));
-
-  const readme = projectContext?.github
+  const readme = projectContext
     ? await fetchReadme(projectContext.github)
     : null;
 
-  const systemInstruction = projectContext
-    ? buildSystemPrompt(projectContext, readme)
-    : undefined;
-
-  const ai = new GoogleGenAI({});
-
-  const stream = await ai.models.generateContentStream({
-    model: "gemini-3-flash-preview",
-    contents,
-    config: {
-      systemInstruction,
-      thinkingConfig: { thinkingBudget: 0 },
-    },
+  const result = streamText({
+    model: google("gemini-2.5-flash-lite"),
+    system: buildSystemPrompt(projectContext, readme),
+    messages: await convertToModelMessages(messages),
   });
 
-  const encoder = new TextEncoder();
-
-  return new Response(
-    new ReadableStream({
-      async start(controller) {
-        try {
-          for await (const chunk of stream) {
-            if (chunk.text) {
-              controller.enqueue(encoder.encode(chunk.text));
-            }
-          }
-          controller.close();
-        } catch (error) {
-          controller.error(error);
-        }
-      },
-    }),
-    {
-      headers: {
-        "Content-Type": "text/plain; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-      },
-    }
-  );
+  return result.toUIMessageStreamResponse({
+    headers: {
+      "X-Content-Type-Options": "nosniff",
+    },
+  });
 }

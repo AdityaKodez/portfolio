@@ -146,6 +146,38 @@
   }
 }
 
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(220 10% 40%) transparent;
+}
+
+/* WebKit (Chrome, Edge, Safari) */
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: hsl(220 10% 40%);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(220 10% 30%);
+}
+
+html,
+body {
+  scroll-behavior: smooth;
+  scrollbar-gutter: stable;
+}
 
 ::-moz-selection {
   color: var(--background);
@@ -285,6 +317,15 @@
   }
 }
 
+@utility no-scrollbar {
+  scrollbar-width: 0px;
+  -ms-overflow-style: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* code block */
 
 html.light[data-theme="dark"] {
@@ -300,7 +341,7 @@ html.dark[data-theme="light"] {
 }
 
 [data-rehype-pretty-code-figure] code {
-  @apply grid min-w-full break-words border-none bg-transparent pl-3 text-sm rounded-md;
+  @apply grid min-w-full wrap-break-word border-none bg-transparent pl-3 text-sm rounded-md;
   counter-reset: line;
   box-decoration-break: clone;
 }
